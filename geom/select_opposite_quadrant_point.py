@@ -229,13 +229,18 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="在反向象限的环带内挑选可达像素点",
     )
-    parser.add_argument("--map", required=True, help="地图文件路径，可为 BMP/PNG/JPG 或 NPY。")
-    parser.add_argument("--bx", type=int, required=True, help="点 B 的 x 坐标。")
-    parser.add_argument("--by", type=int, required=True, help="点 B 的 y 坐标。")
-    parser.add_argument("--cx", type=int, required=True, help="点 C 的 x 坐标。")
-    parser.add_argument("--cy", type=int, required=True, help="点 C 的 y 坐标。")
-    parser.add_argument("--minC", type=int, required=True, help="环带的最小半径。")
-    parser.add_argument("--maxC", type=int, required=True, help="环带的最大半径。")
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="使用内置 7×7 白色测试地图展示四个象限的示例，无需额外参数。",
+    )
+    parser.add_argument("--map", help="地图文件路径，可为 BMP/PNG/JPG 或 NPY。")
+    parser.add_argument("--bx", type=int, help="点 B 的 x 坐标。")
+    parser.add_argument("--by", type=int, help="点 B 的 y 坐标。")
+    parser.add_argument("--cx", type=int, help="点 C 的 x 坐标。")
+    parser.add_argument("--cy", type=int, help="点 C 的 y 坐标。")
+    parser.add_argument("--minC", type=int, help="环带的最小半径。")
+    parser.add_argument("--maxC", type=int, help="环带的最大半径。")
     parser.add_argument(
         "--angle-tol",
         type=float,
@@ -254,14 +259,28 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
         help="启用详细日志输出。",
     )
 
-    arguments = list(argv)
-    if not arguments:
-        parser.print_help()
-        parser.exit(
-            status=1,
-            message="错误：未提供任何命令行参数，请参照上述用法补齐必填参数。\n",
-        )
-    return parser.parse_args(arguments)
+    args = parser.parse_args(list(argv))
+    if args.demo:
+        return args
+
+    missing_fields: List[str] = []
+    if args.map is None:
+        missing_fields.append("--map")
+    if args.bx is None:
+        missing_fields.append("--bx")
+    if args.by is None:
+        missing_fields.append("--by")
+    if args.cx is None:
+        missing_fields.append("--cx")
+    if args.cy is None:
+        missing_fields.append("--cy")
+    if args.minC is None:
+        missing_fields.append("--minC")
+    if args.maxC is None:
+        missing_fields.append("--maxC")
+    if missing_fields:
+        parser.error("缺少必填参数：" + ", ".join(missing_fields))
+    return args
 
 
 def _configure_logging(verbose: bool) -> None:
@@ -271,10 +290,49 @@ def _configure_logging(verbose: bool) -> None:
     logging.basicConfig(level=level, format="%(levelname)s: %(message)s")
 
 
+def _run_demo() -> int:
+    """执行内置示例，展示不同象限下的选点结果。"""
+
+    _configure_logging(False)
+    _LOGGER.info("未提供参数，将执行内置演示用例。")
+    grid = np.full((7, 7, 3), 255, dtype=np.uint8)
+    c_point = (3, 3)
+    cases = [
+        ("NE", (5, 1)),
+        ("NW", (1, 1)),
+        ("SE", (5, 5)),
+        ("SW", (1, 5)),
+    ]
+    print("演示地图为 7×7 全白，可达像素填满全图。")
+    for label, b_point in cases:
+        result = select_opposite_quadrant_point(
+            B=b_point,
+            C=c_point,
+            grid=grid,
+            min_dist_from_C=1,
+            max_dist_from_C=5,
+        )
+        if result is None:
+            print(f"B 位于 {label} 象限时：未找到满足条件的像素。")
+        else:
+            print(
+                f"B 位于 {label} 象限时：选取的 D 坐标为 {result[0]},{result[1]}。",
+            )
+    print("如需在真实地图上运行，请提供 --map 以及各项参数。")
+    return 0
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     """命令行入口，处理参数解析、地图加载与结果输出。"""
 
-    args = _parse_args(argv or sys.argv[1:])
+    arg_list = list(argv or sys.argv[1:])
+    if not arg_list:
+        return _run_demo()
+
+    args = _parse_args(arg_list)
+    if args.demo:
+        return _run_demo()
+
     _configure_logging(args.verbose)
 
     grid_path = Path(args.map)
