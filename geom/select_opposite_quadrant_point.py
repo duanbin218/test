@@ -253,7 +253,15 @@ def _parse_args(argv: Iterable[str]) -> argparse.Namespace:
         action="store_true",
         help="启用详细日志输出。",
     )
-    return parser.parse_args(argv)
+
+    arguments = list(argv)
+    if not arguments:
+        parser.print_help()
+        parser.exit(
+            status=1,
+            message="错误：未提供任何命令行参数，请参照上述用法补齐必填参数。\n",
+        )
+    return parser.parse_args(arguments)
 
 
 def _configure_logging(verbose: bool) -> None:
