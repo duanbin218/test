@@ -1,0 +1,3 @@
+# 本工具运行所需的第三方库
+numpy
+opencv-python
