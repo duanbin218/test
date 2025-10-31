@@ -90,17 +90,25 @@ def _iter_candidate_pixels(
             dist = math.hypot(dx, dy)
             if dist < min_dist or dist > max_dist:
                 continue
-            if x_sign_constraint != 0 and dx * x_sign_constraint >= 0:
-                # 当约束为 -1 时 dx 需 <0；约束为 +1 时 dx 需 >0
+            if x_sign_constraint == -1 and dx >= 0:
+                # 约束为 -1 代表需要位于 C 左侧（dx<0）
                 continue
-            if y_sign_constraint != 0 and dy * y_sign_constraint >= 0:
+            if x_sign_constraint == 1 and dx <= 0:
+                # 约束为 +1 代表需要位于 C 右侧（dx>0）
+                continue
+            if y_sign_constraint == -1 and dy >= 0:
+                # 约束为 -1 代表需要位于 C 上方（dy<0）
+                continue
+            if y_sign_constraint == 1 and dy <= 0:
+                # 约束为 +1 代表需要位于 C 下方（dy>0）
                 continue
             if dist == 0:
                 continue
             angle = math.atan2(dy, dx)
-            if abs(_angle_difference_rad(angle, angle_center)) > angle_tolerance:
+            angle_delta = abs(_angle_difference_rad(angle, angle_center))
+            if angle_delta > angle_tolerance:
                 continue
-            yield x, y, dist, abs(_angle_difference_rad(angle, angle_center))
+            yield x, y, dist, angle_delta
 
 
 def select_opposite_quadrant_point(
